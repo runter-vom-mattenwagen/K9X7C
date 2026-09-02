@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "curl": {
+      "command": "python3",
+      "args": ["/absolute/path/to/curl_mcp_server.py"]
+    }
+  }
+}

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎫</text></svg>">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ACT System{% endblock %}</title>
+    <style>
+        :root {
+            --bg: #0f172a; --surface: #1e293b; --border: #334155;
+            --text: #e2e8f0; --text-dim: #94a3b8; --accent: #3b82f6;
+            --accent-hover: #2563eb; --green: #22c55e; --red: #ef4444;
+            --yellow: #eab308; --purple: #a855f7; --orange: #f97316;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+               background: var(--bg); color: var(--text); line-height: 1.5; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+        header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.75rem 1rem; display: flex; align-items: center; gap: 1.5rem; }
+        header h1 { font-size: 1.1rem; font-weight: 600; }
+        header nav { display: flex; gap: 1rem; font-size: 0.9rem; }
+        header nav a { color: var(--text-dim); } header nav a:hover { color: var(--text); }
+        .nav-badge { display: inline-block; background: var(--accent); color: #fff; font-size: 0.65rem;
+                     font-weight: 700; padding: 0.05rem 0.35rem; border-radius: 999px; vertical-align: super;
+                     line-height: 1.4; margin-left: 0.2rem; }
+
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge-new { background: var(--accent); }
+        .badge-proposed { background: var(--purple); } .badge-approved { background: var(--green); color: #000; }
+        .badge-implementing { background: var(--orange); color: #000; } .badge-testing { background: var(--yellow); color: #000; }
+        .badge-done { background: #059669; } .badge-rejected { background: var(--red); } 
+        .badge-bug { background: var(--red); } .badge-feature { background: var(--green); color: #000; }
+        
+
+        .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+        .stat-card .num { font-size: 2rem; font-weight: 700; color: var(--accent); }
+        .stat-card .label { font-size: 0.8rem; color: var(--text-dim); }
+        .stat-card:hover { border-color: var(--accent); transition: border-color 0.15s; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+        th { color: var(--text-dim); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
+        tr:hover { background: rgba(255,255,255,0.03); }
+
+        .btn { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 6px; border: none;
+               font-size: 0.8rem; font-weight: 500; cursor: pointer; color: #fff; }
+        .btn-primary { background: var(--accent); } .btn-primary:hover { background: var(--accent-hover); }
+        .btn-green { background: var(--green); color: #000; } .btn-red { background: var(--red); }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+
+        input, textarea, select { background: var(--bg); border: 1px solid var(--border); color: var(--text);
+                                   padding: 0.5rem 0.5rem; border-radius: 6px; width: 100%; font-size: 0.875rem; }
+        select { appearance: none; padding-right: 2rem; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%2394a3b8' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.5rem center; }
+        textarea { min-height: 100px; resize: vertical; }
+        label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.25rem; margin-top: 0.75rem; }
+
+        .filters { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+        .filters select { width: auto; min-width: 140px; }
+        .multi-select { position: relative; }
+        .multi-select-btn { background: var(--bg); border: 1px solid var(--border); color: var(--text);
+            padding: 0.5rem 2rem 0.5rem 0.6rem; border-radius: 6px; font-size: 0.875rem; cursor: pointer;
+            min-width: 140px; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%2394a3b8' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 0.5rem center; }
+        .multi-select-dropdown { display: none; position: absolute; top: 100%; left: 0; margin-top: 0.25rem;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 100; min-width: 150px; padding: 0.3rem 0; }
+        .multi-select.open .multi-select-dropdown { display: block; }
+        .multi-select-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.7rem;
+            cursor: pointer; font-size: 0.85rem; color: var(--text-dim); }
+        .multi-select-item:hover { background: rgba(255,255,255,0.05); }
+        .multi-select-item input { display: none; }
+        .multi-select-item .check { width: 1.1rem; text-align: left; color: var(--accent); font-size: 0.8rem; }
+
+
+        .timeline { position: relative; padding-left: 1.5rem; }
+        .timeline::before { content: ''; position: absolute; left: 0.4rem; top: 0; bottom: 0; width: 2px; background: var(--border); }
+        .timeline-item { position: relative; margin-bottom: 1rem; }
+        .timeline-item::before { content: ''; position: absolute; left: -1.15rem; top: 0.4rem; width: 10px; height: 10px;
+                                  border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); }
+        .timeline-item .ts { font-size: 0.7rem; color: var(--text-dim); }
+        .timeline-item .actor { font-weight: 600; color: var(--accent); }
+
+        .proposal-card { border-left: 3px solid var(--purple); }
+        pre { background: var(--bg); padding: 0.75rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; white-space: pre-wrap; }
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .badge, .status-badge { white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎫 ACT</h1>
+        <nav>
+            <a href="/">Dashboard{% if open_ticket_count %}<span class="nav-badge">{{ open_ticket_count }}</span>{% endif %}</a>
+            <a href="/backlog">Backlog</a>
+            <a href="/changelog">Changelog</a>
+            <a href="/wiki">Docs</a>
+            <a href="/apps/new">+ App</a>
+            <a href="/api/docs" target="_blank">API Docs</a>
+            <act-widget endpoint="https://act.claude.int" token="act_<app-token>" mode="link" label="Feedback"></act-widget>
+        </nav>
+    </header>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    <script src="/widget/act-widget.js"></script>
+</body>
+</html>

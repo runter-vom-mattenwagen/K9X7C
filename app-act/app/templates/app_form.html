@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Register App — ACT{% endblock %}
+{% block content %}
+<div style="margin:1rem 0 0.5rem"><a href="/" style="font-size:0.85rem;color:var(--text-dim)">← Dashboard</a></div>
+
+<div class="card" style="max-width:600px">
+    <h2 style="margin-bottom:1rem">Register New App</h2>
+    <form method="post" action="/apps/new">
+        <label>App Name *</label>
+        <input type="text" name="name" required placeholder="e.g. Konfliktlandkarte">
+        
+        <label>Codebase Path (on server)</label>
+        <input type="text" name="codebase_path" placeholder="/daten/docker/nginx-test/vol_html/konfliktlandkarte">
+        
+        <label>Build Command (optional)</label>
+        <input type="text" name="build_cmd" placeholder="e.g. npm run build">
+        
+        <label>Test Command (optional)</label>
+        <input type="text" name="test_cmd" placeholder="e.g. npm test">
+        
+        <button type="submit" class="btn btn-primary" style="margin-top:1.5rem">Register App</button>
+    </form>
+    <p style="font-size:0.8rem;color:var(--text-dim);margin-top:1rem">
+        After registration you'll get an API token. Use it in the widget's <code>token</code> attribute.
+    </p>
+</div>
+{% endblock %}

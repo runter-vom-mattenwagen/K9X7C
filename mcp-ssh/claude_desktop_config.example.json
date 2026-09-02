@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ssh": {
+      "command": "uv",
+      "args": [
+        "run",
+        "/absolute/path/to/ssh_mcp_server.py"
+      ]
+    }
+  }
+}

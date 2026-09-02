@@ -1,0 +1,50 @@
+# --- Secrets & environment (never commit real values) ---
+.env
+*.env
+!*.env.example
+**/credentials/
+*_creds.md
+vault_pass
+vault_*password*
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# --- State & runtime data (someone else's "Bewegdaten") ---
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+terraform.tfvars          # keep only terraform.tfvars.example
+vol_data/
+vol_logs/
+vol_config/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+index.db*
+
+# --- Notes / user content (data lives at its source, not here) ---
+notes/
+vol_data/notes/
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# --- Editor / OS ---
+.DS_Store
+*.swp
+*.bak
+*.bak-*
+.claude/
+.claude-trust.json
+
+# --- Build artifacts ---
+*.tar.gz
+uv.lock       # optional: keep if you want reproducible installs

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory Lens</title>
+<style>
+:root{--bg:#12130f;--fg:#e8e6df;--dim:#8b8a82;--line:#2c2e28;--card:#1a1c17;--acc:#c9a227}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:2rem 1rem}
+.wrap{max-width:900px;margin:0 auto}
+h1{font-size:1.1rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:0 0 1.2rem}
+.bar{display:flex;gap:.5rem;margin-bottom:.6rem}
+input,select,button{background:var(--card);color:var(--fg);border:1px solid var(--line);padding:.6rem .7rem;font:inherit;border-radius:4px}
+input{flex:1}
+button{cursor:pointer}
+button:hover{border-color:var(--acc)}
+.stats{color:var(--dim);font-size:.8rem;margin-bottom:1.4rem}
+.hit{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:.8rem .9rem;margin-bottom:.6rem;cursor:pointer}
+.hit:hover{border-color:var(--acc)}
+.ht{display:flex;justify-content:space-between;gap:1rem;align-items:baseline}
+.tt{font-weight:500}
+.id{color:var(--dim);font-size:.75rem}
+.sm{color:var(--dim);margin:.3rem 0 .5rem;font-size:.87rem}
+.sig{display:flex;gap:.4rem;flex-wrap:wrap;font-size:.72rem}
+.b{border:1px solid var(--line);border-radius:3px;padding:.1rem .4rem;color:var(--dim)}
+.b.lex{border-color:#5a6b3a;color:#9dbd63}
+.b.sem{border-color:#4a5a75;color:#85b7eb}
+.b.dead{opacity:.4}
+.b.hot{border-color:#7a5a2a;color:#d9a441}
+.row{display:flex;gap:.6rem;border-bottom:1px solid var(--line);padding:.35rem 0;font-size:.8rem;align-items:baseline}
+.row .w{color:var(--dim);min-width:9.5rem}
+.row .a{min-width:4.5rem}
+.src-mcp{color:#85b7eb}.src-api{color:#9dbd63}.src-lens{color:var(--dim);opacity:.55}
+.miss{color:#e06c5a}
+pre{white-space:pre-wrap;word-break:break-word;background:#0d0e0b;border:1px solid var(--line);border-radius:4px;padding:.8rem;margin:.7rem 0 0;font-size:.83rem;color:#cfcdc4}
+.empty{color:var(--dim);padding:2rem 0}
+pre.err{color:#e06c5a;white-space:pre-wrap}
+.info{padding:.3rem .55rem;color:var(--dim)}
+.row .ip{color:var(--dim);min-width:8.5rem;opacity:.65}
+.help{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:3rem 1rem;overflow:auto;z-index:10}
+.help[hidden]{display:none}
+.sheet{position:relative;max-width:760px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:1.4rem 1.6rem}
+.sheet h2{font-size:1rem;font-weight:500;margin:.1rem 0 .3rem;color:var(--fg)}
+.sheet h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--acc);margin:1.4rem 0 .45rem}
+.sheet .x{position:absolute;top:.5rem;right:.6rem;background:none;border:none;font-size:1.4rem;line-height:1;color:var(--dim);padding:.1rem .4rem}
+.sheet code{color:#cfcdc4}
+.sheet .note{color:var(--dim);font-size:.82rem;margin:.35rem 0}
+.sheet table.ep{width:100%;border-collapse:collapse;font-size:.82rem}
+.sheet table.ep td{border-bottom:1px solid var(--line);padding:.28rem .3rem;vertical-align:top}
+.sheet table.ep td:first-child{color:#9dbd63;white-space:nowrap;padding-right:.9rem}
+#toollist div{font-size:.82rem;margin:.15rem 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Memory Lens</h1>
+<div class="bar">
+  <input id="q" placeholder="Frage stellen, z.B. Container sieht alte Datei" autofocus>
+  <select id="scope"><option value="">alle scopes</option></select>
+  <select id="type"><option value="">alle types</option></select>
+  <button id="ac" title="Zugriffe von Claude anzeigen">zugriffe</button>
+  <button id="rx" title="Index neu bauen">reindex</button>
+  <button id="info" class="info" title="Integration &amp; API">&#9432;</button>
+</div>
+<div class="stats" id="stats"></div>
+<div id="out" class="empty">Suche eingeben.</div>
+</div>
+<div id="help" class="help" hidden>
+  <div class="sheet">
+    <button class="x" id="helpx" title="schliessen">&times;</button>
+    <h2>Zugriff auf den Memory-Service</h2>
+    <p class="note">Chat-uebergreifendes Gedaechtnis. <code>/mcp</code> spricht MCP (Bearer-Token), <code>/api/*</code> ist im LAN offen (kein Token).</p>
+
+    <h3>Als MCP-Server einbinden (Claude Code)</h3>
+    <pre>claude mcp add --transport http memory https://memory.claude.int/mcp \
+  --header "Authorization: Bearer &lt;MEMORY_TOKEN&gt;"</pre>
+    <p class="note">Token in <code>/daten/docker/memory/.env</code> (Notiz <code>cred-memory-token</code>).</p>
+
+    <h3>REST-Endpunkte (LAN, ohne Token)</h3>
+    <table class="ep">
+      <tr><td>POST /api/search</td><td>Suche, JSON-Body <code>{q,k,scope,type}</code></td></tr>
+      <tr><td>GET&nbsp;/api/note?id=</td><td>Volltext einer Notiz</td></tr>
+      <tr><td>POST /api/note</td><td>Anlegen; mit <code>id</code> = Update in place; <code>supersedes</code> = umbenennen</td></tr>
+      <tr><td>DELETE /api/note?id=</td><td>Loeschen (git-recoverable)</td></tr>
+      <tr><td>GET&nbsp;/api/tools</td><td>Diese Tool-Liste</td></tr>
+      <tr><td>POST /api/reindex</td><td>Index neu bauen</td></tr>
+      <tr><td>GET&nbsp;/api/access &middot; /api/stats &middot; /healthz</td><td>Log &middot; Bestand &middot; Status</td></tr>
+    </table>
+
+    <h3>Tools</h3>
+    <div id="toollist" class="note">laedt&hellip;</div>
+
+    <h3>cURL</h3>
+    <pre># Suchen
+curl -sk -X POST -H 'Content-Type: application/json' \
+  -d '{"q":"frage in natuerlicher sprache","k":10}' \
+  https://memory.claude.int/api/search
+
+# Volltext
+curl -sk 'https://memory.claude.int/api/note?id=&lt;id&gt;'
+
+# Anlegen / Aktualisieren (id = Update)
+curl -sk -X POST -H 'Content-Type: application/json' \
+  -d '{"id":"gotcha-...","title":"...","summary":"&lt;120 Zeichen","body":"...","type":"gotcha","scope":"homelab","tags":["..."]}' \
+  https://memory.claude.int/api/note
+
+# Loeschen
+curl -sk -X DELETE 'https://memory.claude.int/api/note?id=&lt;id&gt;'
+
+# Tools ueber MCP (SSE)
+curl -sk https://memory.claude.int/mcp -H 'Authorization: Bearer &lt;MEMORY_TOKEN&gt;' \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</pre>
+  </div>
+</div>
+<script>
+const $=i=>document.getElementById(i), out=$('out');
+let t=null, view='search';
+// X-Lens marks our own requests. Without it, browsing the memory here would
+// bury what Claude actually does in the access log.
+const F=(u,o={})=>fetch(u,{...o,headers:{...(o.headers||{}),'X-Lens':'1'}});
+async function stats(){
+  const s=await (await F('/api/stats')).json();
+  $('stats').textContent=`${s.total} Notizen · ${Object.entries(s.by_type).map(([k,v])=>k+':'+v).join(' · ')} · ${s.model}`;
+  const ty=$('type'); ty.length=1;
+  Object.entries(s.by_type).forEach(([k,v])=>ty.add(new Option(`${k} (${v})`,k)));
+  // The scope select used to stay empty: it was wired to the search but nobody
+  // ever filled it, because /api/stats did not report scopes.
+  const sc=$('scope'); sc.length=1;
+  Object.entries(s.by_scope||{}).forEach(([k,v])=>sc.add(new Option(`${k} (${v})`,k)));
+}
+function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function badge(h){
+  const l=h.bm25_rank?`<span class="b lex">BM25 #${h.bm25_rank} (${h.bm25})</span>`:`<span class="b lex dead">BM25 —</span>`;
+  const s=h.vec_rank?`<span class="b sem">cos ${h.cosine} #${h.vec_rank}</span>`:`<span class="b sem dead">cos —</span>`;
+  return `${l}${s}<span class="b">RRF ${h.score}</span><span class="b">${h.type}</span><span class="b">${h.scope}</span><span class="b">${h.updated||'ohne Datum'}</span>` +
+    (h.reads ? `<span class="b hot">${h.reads}x gelesen</span>`
+             : `<span class="b dead">nie gelesen</span>`);
+}
+async function open_(id,el){
+  if(el.querySelector('pre')){el.querySelector('pre').remove();return}
+  const p=document.createElement('pre');
+  try{
+    const r=await F('/api/note?id='+encodeURIComponent(id));
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const n=await r.json();
+    p.textContent=`${n.path}\nGeaendert: ${n.meta&&n.meta.updated||'unbekannt'}\n\n${n.body}`;
+  }catch(e){
+    p.className='err';
+    p.textContent='Volltext nicht ladbar: '+e.message+
+      '\nMeist kaputtes YAML-Frontmatter. Pruefen mit:\n'+
+      "python3 -c \"import yaml,sys; yaml.safe_load(open(sys.argv[1]).read().split('---',2)[1])\" <datei>";
+  }
+  el.appendChild(p);
+}
+function fmt(ts){return (ts||'').replace('T',' ').slice(5,16)}
+async function showAccess(){
+  view='access';
+  const d=await (await F('/api/access?limit=80')).json();
+  const s=d.summary, by=Object.entries(s.by_source||{})
+    .map(([k,v])=>`${k}: ${Object.entries(v).map(([a,c])=>a+' '+c).join(', ')}`).join(' · ');
+  const ips=Object.entries(s.by_ip||{}).map(([k,v])=>k+' '+v).join(', ');
+  $('stats').textContent=`${s.total} Zugriffe seit ${fmt(s.since)||'-'} · ${by||'noch nichts'} · IPs: ${ips||'-'} · ${s.empty_searches} Suchen ohne Treffer`;
+  out.className='';
+  if(!d.recent.length){out.className='empty';out.textContent='Noch keine Zugriffe protokolliert.';return}
+  out.innerHTML=d.recent.map(r=>{
+    const what = r.action==='search'
+      ? `<span class="${r.hits?'':'miss'}">"${esc(r.query)}" &rarr; ${r.hits||0} Treffer${r.top_id?', top: '+esc(r.top_id):''}</span>`
+      : esc(r.note_id||'-');
+    return `<div class="row"><span class="w">${fmt(r.ts)}</span>`+
+           `<span class="a src-${r.source}">${r.source}</span>`+
+           `<span class="ip">${esc(r.ip||'\u2014')}</span>`+
+           `<span class="a">${r.action}</span><span>${what}</span></div>`;
+  }).join('');
+}
+async function go(){
+  if(view==='access'){return showAccess()}
+  const q=$('q').value.trim();
+  if(!q){out.className='empty';out.textContent='Suche eingeben.';return}
+  const r=await (await F(`/api/search?q=${encodeURIComponent(q)}&scope=${$('scope').value}&type=${$('type').value}`)).json();
+  out.className='';
+  if(!r.length){out.className='empty';out.textContent='Keine Treffer.';return}
+  out.innerHTML=r.map((h,i)=>`<div class="hit" data-id="${h.id}"><div class="ht"><span class="tt">${i+1}. ${esc(h.title)}</span><span class="id">${h.id}</span></div><div class="sm">${esc(h.summary)}</div><div class="sig">${badge(h)}</div></div>`).join('');
+  [...out.children].forEach(el=>el.onclick=()=>open_(el.dataset.id,el));
+}
+$('q').oninput=()=>{clearTimeout(t);t=setTimeout(go,250)};
+$('scope').onchange=$('type').onchange=go;
+$('ac').onclick=()=>{
+  if(view==='access'){view='search';$('ac').textContent='zugriffe';stats();go()}
+  else{$('ac').textContent='suche';showAccess()}
+};
+$('q').onfocus=()=>{if(view==='access'){view='search';$('ac').textContent='zugriffe';stats();go()}};
+$('rx').onclick=async()=>{$('rx').textContent='...';await F('/api/reindex',{method:'POST'});$('rx').textContent='reindex';stats();go()};
+$('info').onclick=()=>{$('help').hidden=false;loadTools()};
+$('helpx').onclick=()=>{$('help').hidden=true};
+$('help').onclick=e=>{if(e.target===$('help'))$('help').hidden=true};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('help').hidden=true});
+let toolsLoaded=false;
+async function loadTools(){
+  if(toolsLoaded)return;
+  try{
+    const d=await (await F('/api/tools')).json();
+    $('toollist').innerHTML=d.tools.map(t=>`<div><code>${esc(t.name)}</code> &mdash; ${esc((t.description||'').split('\n')[0])}</div>`).join('');
+    toolsLoaded=true;
+  }catch(e){$('toollist').textContent='Tools nicht ladbar: '+e.message}
+}
+stats();
+</script>
+</body>
+</html>

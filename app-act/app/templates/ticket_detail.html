@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}{{ ticket.id }} — ACT{% endblock %}
+{% block content %}
+<div style="margin:1rem 0 0.5rem">
+    <a href="/" style="font-size:0.85rem;color:var(--text-dim)">← Dashboard</a>
+</div>
+
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem">
+        <div>
+            <h2 style="margin-bottom:0.25rem">{{ ticket.title }}</h2>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                <span class="badge badge-{{ ticket.type }}">{{ ticket.type }}</span>
+                <span class="badge badge-{{ ticket.status }}">{{ ticket.status }}</span>
+                <span style="font-size:0.8rem;color:var(--text-dim)">{{ ticket.id }} · {{ app.name }} · {{ ticket.priority }}</span>
+            </div>
+        </div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">
+            {% if ticket.status == 'new' %}
+                {% if rollback_pending %}
+                    <span style="font-size:0.8rem;color:var(--yellow)">⏳ Rollback + Neuanalyse ausstehend (nächster Cron-Lauf)</span>
+                {% elif proposals %}
+                    <span style="font-size:0.8rem;color:var(--text-dim)">Implementation fehlgeschlagen — Proposal erneut freigeben?</span>
+                    <button class="btn btn-green btn-sm" onclick="retryImplementation('{{ ticket.id }}')">🔄 Retry</button>
+                {% else %}
+                    <span style="font-size:0.8rem;color:var(--text-dim)">⏳ Wartet auf Claude-Analyse (nächster Cron-Lauf)</span>
+                {% endif %}
+                <button class="btn btn-red btn-sm" onclick="transitionTicket(event, '{{ ticket.id }}', 'rejected')">Reject</button>
+            {% elif ticket.status == 'proposed' %}
+                <span style="font-size:0.8rem;color:var(--text-dim)">Claude hat einen Lösungsvorschlag:</span>
+                <button class="btn btn-green btn-sm" onclick="transitionTicket(event, '{{ ticket.id }}', 'approved')">✓ Approve</button>
+                <button class="btn btn-red btn-sm" onclick="transitionTicket(event, '{{ ticket.id }}', 'rejected')">✗ Reject</button>
+            {% elif ticket.status == 'approved' %}
+                <span style="font-size:0.8rem;color:var(--text-dim)">⏳ Freigegeben — Claude implementiert beim nächsten Cron-Lauf</span>
+                <button class="btn btn-red btn-sm" onclick="reopenTicket('{{ ticket.id }}')">↩ Zurücknehmen</button>
+            {% elif ticket.status == 'implementing' %}
+                <span style="font-size:0.8rem;color:var(--text-dim)">🔧 Claude implementiert gerade…</span>
+            {% elif ticket.status == 'testing' %}
+                <span style="font-size:0.8rem;color:var(--text-dim)">Änderung ist live — bitte prüfen:</span>
+                <button class="btn btn-green btn-sm" onclick="transitionTicket(event, '{{ ticket.id }}', 'done')">✓ Passt</button>
+                <button class="btn btn-red btn-sm" onclick="revertAndReopen('{{ ticket.id }}')">↩ Nicht OK (Rollback)</button>
+            {% elif ticket.status == 'done' %}
+                <button class="btn btn-sm btn-primary" onclick="reopenTicket('{{ ticket.id }}')">↩ Reopen</button>
+            {% elif ticket.status == 'rejected' %}
+                <button class="btn btn-sm btn-primary" onclick="reopenTicket('{{ ticket.id }}')">↩ Reopen</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div style="margin-top:1rem">
+        <label>Description</label>
+        <div style="background:var(--bg);padding:0.75rem;border-radius:6px;white-space:pre-wrap;font-size:0.875rem">{{ ticket.description }}</div>
+    </div>
+
+    {% if ticket.context_url or ticket.context_browser or ticket.context_errors %}
+    <div style="margin-top:1rem">
+        <label>Context</label>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:0.25rem 0.75rem;font-size:0.8rem">
+            {% if ticket.context_url %}<span style="color:var(--text-dim)">URL:</span><span>{{ ticket.context_url }}</span>{% endif %}
+            {% if ticket.context_browser %}<span style="color:var(--text-dim)">Browser:</span><span>{{ ticket.context_browser }}</span>{% endif %}
+            {% if ticket.context_app_version %}<span style="color:var(--text-dim)">Version:</span><span>{{ ticket.context_app_version }}</span>{% endif %}
+            {% if ticket.context_errors %}<span style="color:var(--text-dim)">Errors:</span><pre style="margin:0">{{ ticket.context_errors }}</pre>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if proposals %}
+<h3 style="margin:1.5rem 0 0.75rem">🤖 Proposal</h3>
+{% set latest = proposals[0] %}
+<div class="card proposal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <span style="font-size:0.8rem;color:var(--text-dim)">{{ latest.id }} · {{ latest.created_at[:16] }}</span>
+        <span class="badge badge-{{ latest.status }}">{{ latest.status }}</span>
+    </div>
+    <div style="font-size:0.9rem;margin-bottom:0.5rem">{{ latest.summary }}</div>
+    {% if latest.branch_name %}<div style="font-size:0.8rem;color:var(--text-dim)">Branch: <code>{{ latest.branch_name }}</code></div>{% endif %}
+    {% if latest.diff_preview %}<pre>{{ latest.diff_preview }}</pre>{% endif %}
+    {% if latest.review_note %}<div style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-dim)">Review: {{ latest.review_note }}</div>{% endif %}
+</div>
+{% if proposals|length > 1 %}
+<details style="margin-top:0.5rem">
+    <summary style="font-size:0.8rem;color:var(--text-dim);cursor:pointer">{{ proposals|length - 1 }} older proposal(s)</summary>
+    {% for p in proposals[1:] %}
+    <div class="card proposal-card" style="opacity:0.6;margin-top:0.5rem">
+        <div style="font-size:0.8rem;color:var(--text-dim)">{{ p.id }} · {{ p.created_at[:16] }} · {{ p.status }}</div>
+        <div style="font-size:0.85rem">{{ p.summary }}</div>
+    </div>
+    {% endfor %}
+</details>
+{% endif %}
+{% endif %}
+
+<h3 style="margin:1.5rem 0 0.75rem">History</h3>
+<div class="timeline">
+    {% for h in history %}
+    <div class="timeline-item">
+        <div style="font-size:0.85rem">
+            <span class="actor">{{ h.actor }}</span> — {{ h.action }}
+            {% if h.old_value and h.new_value %}: {{ h.old_value }} → {{ h.new_value }}{% endif %}
+        </div>
+        {% if h.detail %}<pre style="font-size:0.8rem;color:var(--text-dim);margin:0.25rem 0 0;background:transparent;padding:0;white-space:pre-wrap;font-family:system-ui,sans-serif">{{ h.detail }}</pre>{% endif %}
+        <div class="ts">{{ h.timestamp[:19] }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+async function revertAndReopen(ticketId) {
+    const reason = prompt('Was stimmt nicht? (Wird an Claude für den nächsten Versuch weitergegeben)');
+    if (reason === null) return;
+    if (!reason.trim()) { alert('Bitte einen Grund angeben.'); return; }
+
+    await fetch(`/api/tickets/${ticketId}/transition`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: 'new', actor: 'admin', detail: `Rollback angefordert: ${reason.trim()}`})
+    });
+    location.reload();
+}
+async function reopenTicket(ticketId) {
+    const reason = prompt('Grund fürs Reopen / Was ist noch offen?');
+    if (reason === null) return;  // cancelled
+    if (!reason.trim()) { alert('Bitte einen Grund angeben.'); return; }
+    await fetch(`/api/tickets/${ticketId}/transition`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: 'new', actor: 'admin', detail: 'Reopen: ' + reason.trim()})
+    });
+    location.reload();
+}
+async function retryImplementation(ticketId) {
+    await fetch(`/api/tickets/${ticketId}/transition`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: 'proposed', actor: 'admin', detail: 'Retry after failed implementation'})
+    });
+    await fetch(`/api/tickets/${ticketId}/transition`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: 'approved', actor: 'admin', detail: 'Re-approved for implementation retry'})
+    });
+    location.reload();
+}
+async function transitionTicket(e, ticketId, newStatus) {
+    if (e && e.preventDefault) e.preventDefault();
+    await fetch(`/api/tickets/${ticketId}/transition`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: newStatus, actor: 'admin'})
+    });
+    location.reload();
+}
+async function reviewProposal(proposalId, status, ticketId) {
+    const note = status === 'rejected' ? (prompt('Rejection reason (optional):') || '') : '';
+    await fetch(`/api/proposals/${proposalId}/review?status=${status}&note=${encodeURIComponent(note)}`, {method: 'POST'});
+    if (status === 'approved') {
+        await fetch(`/api/tickets/${ticketId}/transition`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status: 'approved', actor: 'admin', detail: `Proposal ${proposalId} approved`})
+        });
+    }
+    location.reload();
+}
+</script>
+{% endblock %}

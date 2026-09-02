@@ -1,0 +1,35 @@
+services:
+  memory:
+    build: .
+    image: memory:latest
+    container_name: memory
+    restart: unless-stopped
+    mem_limit: 1500m
+    env_file: .env
+    environment:
+      - NOTES_DIR=/data/notes
+      - DB_PATH=/data/index.db
+      - EMBED_MODEL=jinaai/jina-embeddings-v2-base-de
+      # Allowed note scopes. Adding one needs no rebuild, just:
+      #   docker compose up -d
+      - MEMORY_SCOPES=homelab,azure,travel
+    volumes:
+      - ./vol_data:/data
+      - ./vol_logs:/logs
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.memory.rule=Host(`memory.claude.int`)"
+      - "traefik.http.routers.memory.entrypoints=websecure"
+      - "traefik.http.routers.memory.tls=true"
+      - "traefik.http.services.memory.loadbalancer.server.port=8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  traefik-net:
+    external: true

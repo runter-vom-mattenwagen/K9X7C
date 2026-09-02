@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% block title %}Docs — ACT System{% endblock %}
+{% block content %}
+<style>
+    .docs-layout { display: grid; grid-template-columns: 220px 1fr; gap: 2rem; margin-top: 1.5rem; }
+    @media (max-width: 768px) { .docs-layout { grid-template-columns: 1fr; } .docs-sidebar { display: none; } }
+    .docs-sidebar { position: sticky; top: 1rem; align-self: start; }
+    .docs-sidebar nav { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    .docs-sidebar nav h3 { font-size: 0.7rem; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+    .docs-sidebar nav a { display: block; font-size: 0.85rem; color: var(--text-dim); padding: 0.25rem 0; }
+    .docs-sidebar nav a:hover { color: var(--text); text-decoration: none; }
+    .docs-sidebar nav a.sub { padding-left: 0.75rem; font-size: 0.8rem; }
+    .docs-content h2 { font-size: 1.3rem; font-weight: 700; margin: 2rem 0 0.75rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .docs-content h2:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+    .docs-content h3 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--accent); }
+    .docs-content p { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 0.75rem; line-height: 1.7; }
+    .docs-content ul, .docs-content ol { font-size: 0.9rem; color: var(--text-dim); padding-left: 1.5rem; margin-bottom: 0.75rem; line-height: 1.7; }
+    .docs-content li { margin-bottom: 0.25rem; }
+    .docs-content code { background: var(--bg); border: 1px solid var(--border); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.8rem; font-family: monospace; }
+    .docs-content pre { margin: 0.75rem 0 1rem; }
+    .callout { background: var(--surface); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 0.75rem 1rem; margin: 1rem 0; font-size: 0.875rem; color: var(--text-dim); }
+    .callout.warning { border-color: var(--yellow); }
+    .callout.info { border-color: var(--purple); }
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+    .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.875rem; }
+    .metric-card .metric-name { font-size: 0.8rem; font-weight: 600; color: var(--accent); margin-bottom: 0.25rem; }
+    .metric-card .metric-desc { font-size: 0.8rem; color: var(--text-dim); }
+    .mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin: 1rem 0; text-align: center; }
+    .source-note { font-size: 0.75rem; color: var(--text-dim); font-style: italic; margin-top: 0.5rem; }
+    .itil-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+    .itil-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.875rem; }
+    .itil-card .practice-name { font-size: 0.85rem; font-weight: 600; color: var(--purple); margin-bottom: 0.25rem; }
+    .itil-card .practice-desc { font-size: 0.8rem; color: var(--text-dim); }
+</style>
+
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <nav>
+            <h3>Inhalt</h3>
+            <a href="#overview">Überblick</a>
+            <a href="#workflow">Ticket-Workflow</a>
+            <a href="#manual" class="sub">Benutzerhandbuch</a>
+            <a href="#ai-bridge" class="sub">KI-Brücke</a>
+            <a href="#widget" class="sub">Widget</a>
+            <a href="#dora">DORA Metriken</a>
+            <a href="#itil">ITIL Referenz</a>
+            <a href="#stack">Technischer Stack</a>
+        </nav>
+    </aside>
+
+    <main class="docs-content">
+
+        <!-- OVERVIEW -->
+        <h2 id="overview">Überblick</h2>
+        <p>
+            <strong>ACT</strong> (AI-driven Change Tracking) ist ein internes Ticketsystem, das Bugmeldungen und Feature-Requests
+            über einen eingebetteten Browser-Widget entgegennimmt und den gesamten Lifecycle — von der Erfassung über
+            KI-gestützte Analyse bis zur automatisierten Implementierung — in einem geschlossenen Regelkreis abbildet.
+        </p>
+        <p>
+            Das System besteht aus drei Schichten: einer <strong>FastAPI-Backend-API</strong>, einem <strong>Jinja2-Web-Frontend</strong>
+            und einem einbettbaren <strong>Web Component Widget</strong>. Eine Python-Brücke (<code>act-claude.py</code>)
+            verbindet das System mit Claude Code CLI für die KI-Operationen.
+        </p>
+
+        <!-- WORKFLOW -->
+        <h2 id="workflow">Ticket-Workflow</h2>
+        <p>Jedes Ticket durchläuft einen definierten Statusgraph. Statusübergänge werden protokolliert und sind vollständig auditierbar.</p>
+
+        <div class="mermaid">
+            stateDiagram-v2
+                [*] --> new : Widget-Einreichung
+                new --> proposed : KI-Analyse erstellt Proposal
+                new --> rejected : Spam / nicht umsetzbar
+                proposed --> approved : Admin genehmigt
+                proposed --> rejected : Admin lehnt ab
+                approved --> implementing : KI startet Implementierung
+                implementing --> testing : Commit + Branch erstellt
+                implementing --> new : Fehler bei Implementierung
+                testing --> done : Admin nimmt ab → Merge + Branch gelöscht
+                testing --> new : Admin lehnt ab → Branch gelöscht, neu planen
+        </div>
+
+        <h3>Statusbeschreibungen</h3>
+        <ul>
+            <li><strong>new</strong> — Eingegangen, wartet auf KI-Analyse.</li>
+            <li><strong>proposed</strong> — KI hat einen Lösungsvorschlag (Proposal) erstellt. Enthält Summary, Dateipfade und Diff-Preview.</li>
+            <li><strong>approved</strong> — Admin hat das Proposal freigegeben. Wartet auf Implementierung.</li>
+            <li><strong>implementing</strong> — KI arbeitet auf einem Feature-Branch (<code>act/tkt-&lt;id&gt;</code>).</li>
+            <li><strong>testing</strong> — Implementierung committed. Branch wartet auf Merge.</li>
+            <li><strong>done</strong> — Gemergt, Changelog-Eintrag erstellt.</li>
+            <li><strong>rejected</strong> — Manuell oder automatisch abgelehnt (Spam, leerer Diff, verdächtige Commit-Message).</li>
+        </ul>
+
+        <!-- MANUAL -->
+        <h2 id="manual">Benutzerhandbuch</h2>
+
+        <h3>Ticket einreichen (Widget)</h3>
+        <p>
+            Das Widget ist auf der Ziel-Applikation eingebettet. Ein Klick auf den "Feedback"-Button öffnet ein Formular.
+            Typ (Bug / Feature), Titel und Beschreibung sind Pflichtfelder. Browser-Kontext (URL, User-Agent) wird automatisch erfasst.
+        </p>
+
+        <h3>Dashboard</h3>
+        <p>
+            Das Dashboard unter <code>/</code> zeigt alle offenen Tickets mit Status-Badges, Priorität und Typ.
+            Die Zahl im Nav-Badge entspricht der Anzahl der Tickets im Status <em>new</em>, <em>proposed</em> und <em>approved</em>.
+            Über die Filter- und Suchfunktion lassen sich Tickets nach Status, App und Freitext eingrenzen.
+        </p>
+
+        <h3>Proposals prüfen und genehmigen</h3>
+        <p>
+            In der Ticket-Detailansicht erscheinen KI-generierte Proposals mit Summary, vorgesehenen Dateipfaden und Diff-Preview.
+            Über die Schaltflächen <em>Approve</em> / <em>Reject</em> wird ein Proposal freigegeben oder abgelehnt.
+            Nur genehmigte Proposals werden implementiert.
+        </p>
+
+        <h3>Backlog</h3>
+        <p>
+            Der Backlog unter <code>/backlog</code> dient als Ideenspeicher. Einträge können manuell erstellt und bei Bedarf
+            als reguläres Ticket promoted werden.
+        </p>
+
+        <h3>Changelog</h3>
+        <p>
+            Unter <code>/changelog</code> wird jede abgeschlossene Änderung pro App mit Commit-Hash und geänderten Dateien angezeigt.
+        </p>
+
+        <!-- AI BRIDGE -->
+        <h2 id="ai-bridge">KI-Brücke (act-claude.py)</h2>
+        <p>
+            <code>act-claude.py</code> ist der Automatisierungs-Layer zwischen ACT und Claude Code CLI. Es läuft
+            als Cronjob auf dem Host und spricht über die REST-API mit dem ACT-Backend.
+        </p>
+
+        <div class="mermaid">
+            flowchart LR
+                A[Cronjob] --> B[act-claude.py]
+                B -->|GET /api/tickets| C[ACT API]
+                B -->|claude --print| D[Claude Code CLI]
+                D --> B
+                B -->|POST /api/tickets/tkt/transition| C
+                B -->|git checkout -b / commit| E[Git Repo]
+                C --> F[(SQLite DB)]
+        </div>
+
+        <h3>Kommandos</h3>
+        <ul>
+            <li><code>./act-claude.py analyze</code> — Analysiert alle Tickets im Status <em>new</em>, erstellt Proposals.</li>
+            <li><code>./act-claude.py implement [TKT-ID]</code> — Implementiert ein approved Ticket auf einem Branch.</li>
+            <li><code>./act-claude.py auto</code> — Kombiniert analyze + implement (Vollzyklus).</li>
+            <li><code>./act-claude.py status</code> — Zeigt alle Tickets mit handlungsbedarf.</li>
+        </ul>
+
+        <h3>Sicherheits-Checks</h3>
+        <p>
+            Vor dem Merge werden implementierte Branches auf leere Diffs und verdächtige Commit-Messages geprüft.
+            Schlägt ein Check fehl, wird der Branch verworfen und das Ticket zurückgesetzt.
+        </p>
+        <div class="callout warning">
+            Bei einem Absturz während der Implementierung bleibt das Ticket im Status <em>implementing</em> hängen.
+            Manuelles Zurücksetzen über die API oder direkt in der DB ist dann erforderlich.
+        </div>
+
+        <!-- WIDGET -->
+        <h2 id="widget">Widget (act-widget.js)</h2>
+        <p>
+            Das Widget ist ein Vanilla-JS Web Component (Shadow DOM), das in jede Anwendung eingebettet werden kann.
+            Es benötigt einen App-Token und den ACT-Endpoint.
+        </p>
+        <pre>&lt;act-widget
+  endpoint="https://act.claude.int"
+  token="act_&lt;app-token&gt;"
+  mode="link"
+  label="Feedback"
+&gt;&lt;/act-widget&gt;
+&lt;script src="https://act.claude.int/widget/act-widget.js"&gt;&lt;/script&gt;</pre>
+        <p>
+            Parameter: <code>mode="link"</code> zeigt einen Link, <code>mode="button"</code> einen Button.
+            <code>label</code> setzt den sichtbaren Text.
+        </p>
+
+        <!-- DORA -->
+        <h2 id="dora">DORA</h2>
+        <p>
+            Der <strong>Digital Operationally Resilience Act (DORA, EU 2022/2554)</strong> ist eine EU-Verordnung,
+            die verbindliche Anforderungen an die digitale Betriebsstabilität von Finanzunternehmen stellt.
+            Sie verpflichtet Banken, Versicherungen, Wertpapierfirmen und weitere Finanzmarktteilnehmer zu einem
+            robusten IKT-Risikomanagement, lückenlosen Auditierbarkeit von IKT-Systemen und -Prozessen,
+            strukturiertem Incident-Reporting gegenüber Aufsichtsbehörden sowie zur Stärkung der Cyber-Resilienz
+            gegenüber Angriffen und Betriebsunterbrechungen.
+        </p>
+        <p class="source-note">
+            Quelle: Verordnung (EU) 2022/2554 des Europäischen Parlaments und des Rates vom 14. Dezember 2022
+            über die digitale operationale Resilienz im Finanzsektor (DORA). Anwendbar ab 17. Januar 2025.
+        </p>
+
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-name">IKT-Risikomanagement</div>
+                <div class="metric-desc">Finanzunternehmen müssen ein umfassendes IKT-Risikomanagement implementieren, dokumentieren und regelmäßig prüfen (Art. 5–15 DORA).</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-name">Incident-Meldepflicht</div>
+                <div class="metric-desc">Schwerwiegende IKT-bezogene Vorfälle müssen klassifiziert und fristgerecht an die zuständige Aufsichtsbehörde gemeldet werden (Art. 17–23 DORA).</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-name">Resilienz-Tests</div>
+                <div class="metric-desc">Regelmäßige Tests der IKT-Systeme sind verpflichtend — von einfachen Schwachstellenscans bis zu bedrohungsgeleiteten Penetrationstests (TLPT, Art. 24–27 DORA).</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-name">Drittparteienrisiko</div>
+                <div class="metric-desc">Vertragsbeziehungen mit IKT-Drittdienstleistern müssen dokumentiert, bewertet und ausfallsicher ausgestaltet sein (Art. 28–44 DORA).</div>
+            </div>
+        </div>
+
+        <h3>Bezug zu ACT</h3>
+        <p>
+            ACT adressiert mehrere DORA-relevante Anforderungen: Der vollständige <strong>Changelog</strong> mit
+            Commit-Hashes und geänderten Dateien liefert den Audit-Trail, den Art. 9 DORA für die Nachvollziehbarkeit
+            von IKT-Änderungen fordert. Der strukturierte <strong>Proposal-Review-Prozess</strong> (Analyse → Genehmigung → Implementierung)
+            entspricht dem Change-Control-Gedanken des IKT-Risikomanagements. <strong>Bug-Tickets</strong> dokumentieren
+            Incidents mit Kontext und ermöglichen über <code>git revert</code> eine nachvollziehbare Wiederherstellung.
+        </p>
+        <div class="callout info">
+            DORA gilt unmittelbar für Finanzunternehmen und deren IKT-Drittdienstleister im Sinne der Verordnung.
+            ACT ist kein reguliertes Finanzprodukt — die beschriebenen Parallelen sind konzeptioneller Natur
+            und relevant, sofern ACT im Umfeld eines DORA-pflichtigen Unternehmens eingesetzt wird.
+        </div>
+
+        <!-- ITIL -->
+        <h2 id="itil">ITIL Referenz</h2>
+        <p>
+            ITIL 4 (Information Technology Infrastructure Library) ist ein Framework für IT-Service-Management.
+            Die aktuelle Version ITIL 4 wurde 2019 von Axelos veröffentlicht und stellt den
+            <em>Service Value System</em> (SVS) in den Mittelpunkt.
+        </p>
+        <p class="source-note">
+            Quelle: Axelos — <em>ITIL Foundation: ITIL 4 Edition</em>, TSO, 2019, ISBN 978-0-11-331607-3.
+            Axelos ist die offizielle Herausgeberorganisation für ITIL.
+        </p>
+
+        <h3>Relevante ITIL-4-Practices</h3>
+        <div class="itil-grid">
+            <div class="itil-card">
+                <div class="practice-name">Change Enablement</div>
+                <div class="practice-desc">
+                    Maximiert Erfolgsrate von IT-Änderungen durch Risikobewertung und Genehmigungsprozesse.
+                    ACT bildet dies durch den Proposal-Review-Schritt ab.
+                </div>
+            </div>
+            <div class="itil-card">
+                <div class="practice-name">Incident Management</div>
+                <div class="practice-desc">
+                    Minimiert negative Auswirkungen durch schnelle Wiederherstellung.
+                    Bug-Tickets in ACT entsprechen Incident-Records; Rollback via <code>git revert</code> ist der Restore-Mechanismus.
+                </div>
+            </div>
+            <div class="itil-card">
+                <div class="practice-name">Problem Management</div>
+                <div class="practice-desc">
+                    Identifiziert Ursachen wiederkehrender Incidents. Der Backlog in ACT kann als Problem-Register genutzt werden.
+                </div>
+            </div>
+            <div class="itil-card">
+                <div class="practice-name">Service Request Management</div>
+                <div class="practice-desc">
+                    Bearbeitet standardisierte Anfragen. Feature-Tickets in ACT entsprechen Service Requests.
+                </div>
+            </div>
+            <div class="itil-card">
+                <div class="practice-name">Continual Improvement</div>
+                <div class="practice-desc">
+                    Systematische Verbesserung von Services. Der Changelog in ACT liefert den Audit-Trail für Improvement-Aktivitäten.
+                </div>
+            </div>
+        </div>
+
+        <div class="callout warning">
+            ACT ist kein zertifiziertes ITIL-Werkzeug. Die Parallelen sind konzeptioneller Natur.
+            Für eine vollständige ITIL-4-Konformität wären zusätzliche Prozesse und Dokumentation erforderlich
+            (z. B. Configuration Management Database, Service Level Agreements, Supplier Management).
+        </div>
+
+        <h3>Ticket-Lifecycle vs. ITIL Change Enablement</h3>
+        <div class="mermaid">
+            flowchart LR
+                subgraph ACT
+                    A1[new] --> A2[proposed] --> A3[approved] --> A4[implementing] --> A5[done]
+                end
+                subgraph ITIL Change Enablement
+                    B1[Change Request] --> B2[Assessment & Planung] --> B3[Autorisierung] --> B4[Deployment] --> B5[Review]
+                end
+                A1 -.->|entspricht| B1
+                A2 -.->|entspricht| B2
+                A3 -.->|entspricht| B3
+                A4 -.->|entspricht| B4
+                A5 -.->|entspricht| B5
+        </div>
+
+        <!-- STACK -->
+        <h2 id="stack">Technischer Stack</h2>
+        <ul>
+            <li><strong>Backend:</strong> Python 3.12, FastAPI, SQLite (WAL-Modus für Concurrent Reads)</li>
+            <li><strong>Frontend:</strong> Jinja2 Templates, Vanilla JS — kein Build-Step erforderlich</li>
+            <li><strong>Widget:</strong> Vanilla JS Web Component (Shadow DOM), einbettbar in beliebige Anwendungen</li>
+            <li><strong>Container:</strong> Docker, hinter Traefik Reverse Proxy mit TLS-Terminierung</li>
+            <li><strong>Notifications:</strong> ntfy (Self-hosted Push-Notification-Server, JSON API)</li>
+            <li><strong>KI:</strong> Claude Code CLI via <code>claude --print</code> (kein API-Key erforderlich, nutzt lokale Authentifizierung)</li>
+        </ul>
+
+        <p class="source-note" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+            Diese Dokumentation wurde von Claude (claude-sonnet-4-6) am 2026-04-01 erstellt.
+            Alle Angaben zu DORA basieren auf Verordnung (EU) 2022/2554 (eur-lex.europa.eu), ITIL auf Axelos (axelos.com).
+            Fehler oder veraltete Informationen bitte als Ticket einreichen.
+        </p>
+
+    </main>
+</div>
+
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            background: '#1e293b',
+            primaryColor: '#3b82f6',
+            primaryTextColor: '#e2e8f0',
+            lineColor: '#334155',
+            secondaryColor: '#334155',
+            tertiaryColor: '#0f172a',
+        }
+    });
+</script>
+{% endblock %}

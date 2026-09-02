@@ -1,0 +1,30 @@
+services:
+  act:
+    build: .
+    container_name: act
+    restart: unless-stopped
+    environment:
+      - ACT_DB_PATH=/data/act.db
+      - ACT_ADMIN_TOKEN=${ACT_ADMIN_TOKEN:-act-admin-change-me}
+      - ACT_BASE_URL=https://act.claude.int
+    volumes:
+      - ./app:/app
+      - ./vol_data:/data
+      - ./vol_config:/config
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.act.rule=Host(`act.claude.int`)"
+      - "traefik.http.routers.act.entrypoints=websecure"
+      - "traefik.http.routers.act.tls=true"
+      - "traefik.http.services.act.loadbalancer.server.port=8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  traefik-net:
+    external: true

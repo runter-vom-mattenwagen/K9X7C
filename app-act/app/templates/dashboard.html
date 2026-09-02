@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}ACT Dashboard{% endblock %}
+{% block content %}
+
+<div class="grid-stats">
+    <div class="stat-card" style="cursor:pointer" onclick="toggleAllStatuses()" title="Alle / nur aktive">
+        <div class="num">{{ stats.total }}</div><div class="label">Total</div>
+    </div>
+    <div class="stat-card" style="cursor:pointer" onclick="setOnlyStatus('new')" title="Filter: new">
+        <div class="num">{{ stats.by_status.get('new', 0) }}</div><div class="label">New</div>
+    </div>
+    <div class="stat-card" style="cursor:pointer" onclick="setOnlyStatus('proposed')" title="Filter: proposed">
+        <div class="num">{{ stats.pending_review }}</div><div class="label">Pending Review</div>
+    </div>
+    <div class="stat-card" style="cursor:pointer" onclick="setOnlyStatus('done')" title="Filter: done">
+        <div class="num">{{ stats.by_status.get('done', 0) }}</div><div class="label">Done</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="filters">
+<select id="filter-app" onchange="applyFilters()">
+            <option value="">All Apps</option>
+            {% for a in apps %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+        </select>
+
+        <div class="multi-select" id="status-select">
+            <div class="multi-select-btn" onclick="this.parentElement.classList.toggle('open')">
+                <span id="status-label">Status</span>
+            </div>
+            <div class="multi-select-dropdown">
+                {% for s in valid_states %}
+                <div class="multi-select-item" data-value="{{ s }}" onclick="toggleStatus(this)">
+                    <span class="check"></span>
+                    <span>{{ s }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <form method="get" action="/" style="display:flex;gap:0.5rem;align-items:center;margin:0 0 0 auto">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="Suche" style="width:160px;padding:0.4rem 0.6rem;font-size:0.85rem">
+            <button type="submit" class="btn btn-primary btn-sm">Suchen</button>
+            {% if search_query %}<a href="/" style="font-size:0.8rem;color:var(--text-dim)">✕</a>{% endif %}
+        </form>
+    </div>
+
+    <div class="table-responsive">
+    <table>
+        <thead><tr><th style="white-space:nowrap;min-width:9rem">ID</th><th>App</th><th>Type</th><th>Title</th><th>Status</th><th>Priority</th><th>Updated</th></tr></thead>
+        <tbody id="ticket-table">
+        {% for t in tickets %}
+        <tr class="ticket-row" data-app="{{ t.app_id }}" data-status="{{ t.status }}">
+            <td><a href="/tickets/{{ t.id }}">{{ t.id }}</a></td>
+            <td>{{ t.app_name }}</td>
+            <td><span class="badge badge-{{ t.type }}">{{ t.type }}</span></td>
+            <td>{{ t.title }}</td>
+            <td><span class="badge badge-{{ t.status }}">{{ t.status }}</span></td>
+            <td>{{ t.priority }}</td>
+            <td style="font-size:0.75rem;color:var(--text-dim)">{{ t.updated_at[:16] }}</td>
+        </tr>
+        {% endfor %}
+        {% if not tickets %}
+        <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:2rem">
+            {% if search_query %}Keine Tickets gefunden für „{{ search_query }}"{% else %}No tickets yet.{% endif %}
+        </td></tr>
+        {% endif %}
+        </tbody>
+    </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div style="display:flex;justify-content:center;align-items:center;gap:0.5rem;margin-top:1rem;font-size:0.85rem">
+        {% if page > 1 %}
+        <a href="/?page={{ page - 1 }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-primary">← Zurück</a>
+        {% endif %}
+        <span style="color:var(--text-dim)">Seite {{ page }} / {{ total_pages }} ({{ total_tickets }} Tickets)</span>
+        {% if page < total_pages %}
+        <a href="/?page={{ page + 1 }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-primary">Weiter →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% if last_run %}
+<details style="font-size:0.78rem;color:var(--text-dim);margin-top:0.5rem;padding:0 0.25rem">
+    <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:0.5rem">
+        <span style="opacity:0.55">&#9881; act-claude</span>
+        <span style="{% if last_run.status == 'error' %}color:#e57373{% elif last_run.status == 'running' %}color:#ffb74d{% else %}color:#81c784{% endif %}">
+            {{ last_run.status }}
+        </span>
+        <span style="opacity:0.45">
+            {% if last_run.finished_at %}{{ last_run.finished_at[:16].replace('T',' ') }} UTC{% else %}{{ last_run.started_at[:16].replace('T',' ') }} UTC&#8230;{% endif %}
+        </span>
+    </summary>
+    {% if last_run.output %}
+    <pre style="margin:0.35rem 0 0 1.1rem;font-size:0.71rem;max-height:180px;overflow-y:auto;white-space:pre-wrap;opacity:0.65;line-height:1.4">{{ last_run.output }}</pre>
+    {% endif %}
+</details>
+{% endif %}
+
+{% if apps %}
+<details class="card" style="cursor:default">
+    <summary style="cursor:pointer;font-size:1rem;font-weight:600;margin-bottom:0.75rem">Registered Apps</summary>
+    <div class="table-responsive">
+    <table>
+        <thead><tr><th>Name</th><th>ID</th><th>Token</th><th>Codebase</th><th></th></tr></thead>
+        <tbody>
+        {% for a in apps %}
+        <tr id="app-{{ a.id }}">
+            <td>{{ a.name }}</td>
+            <td style="font-size:0.75rem">{{ a.id }}</td>
+            <td><code style="font-size:0.7rem;background:var(--bg);padding:0.2rem 0.4rem;border-radius:3px;cursor:pointer"
+                      onclick="navigator.clipboard.writeText(this.textContent)" title="Click to copy">{{ a.token }}</code></td>
+            <td style="font-size:0.8rem;color:var(--text-dim)">{{ a.codebase_path or '—' }}</td>
+            <td><button class="btn btn-red btn-sm" onclick="deleteApp('{{ a.id }}', '{{ a.name }}')">✕</button></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</details>
+{% endif %}
+
+<script>
+const ACTIVE_STATUSES = ['new', 'proposed', 'approved', 'implementing', 'testing'];
+const ALL_STATUSES = [{% for s in valid_states %}'{{ s }}',{% endfor %}];
+
+function getCheckedStatuses() {
+    return [...document.querySelectorAll('#status-select .multi-select-item.active')].map(el => el.dataset.value);
+}
+
+function setChecked(statuses) {
+    document.querySelectorAll('#status-select .multi-select-item').forEach(el => {
+        el.classList.toggle('active', statuses.includes(el.dataset.value));
+        el.querySelector('.check').textContent = statuses.includes(el.dataset.value) ? '✓' : '';
+    });
+    applyFilters();
+}
+
+function toggleStatus(el) {
+    el.classList.toggle('active');
+    el.querySelector('.check').textContent = el.classList.contains('active') ? '✓' : '';
+    applyFilters();
+}
+
+function setOnlyStatus(status) { setChecked([status]); }
+
+function toggleAllStatuses() {
+    const checked = getCheckedStatuses();
+    setChecked(checked.length === ALL_STATUSES.length ? ACTIVE_STATUSES : ALL_STATUSES);
+}
+
+function updateLabel() {
+    const checked = getCheckedStatuses();
+    const label = document.getElementById('status-label');
+    if (checked.length === 0 || checked.length === ALL_STATUSES.length) {
+        label.textContent = 'Alle Status';
+    } else if (checked.length <= 2) {
+        label.textContent = checked.join(', ');
+    } else {
+        label.textContent = checked.length + ' Status';
+    }
+}
+
+function applyFilters() {
+    const app = document.getElementById('filter-app').value;
+    const activeStatuses = getCheckedStatuses();
+    updateLabel();
+    localStorage.setItem('act_status_filter', JSON.stringify(activeStatuses));
+
+    document.querySelectorAll('.stat-card').forEach(c => c.style.outline = 'none');
+    if (activeStatuses.length === 1) {
+        const map = {'new': 1, 'proposed': 2, 'done': 3};
+        if (map[activeStatuses[0]]) {
+            document.querySelectorAll('.stat-card')[map[activeStatuses[0]]].style.outline = '2px solid var(--accent)';
+        }
+    }
+
+    let visible = 0;
+    document.querySelectorAll('.ticket-row').forEach(row => {
+        const matchApp = !app || row.dataset.app === app;
+        const matchStatus = activeStatuses.length === 0 || activeStatuses.includes(row.dataset.status);
+        const show = matchApp && matchStatus;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+}
+
+async function deleteApp(appId, appName) {
+    if (!confirm('App „' + appName + '" und alle zugehörigen Tickets löschen?')) return;
+    const r = await fetch('/api/apps/' + appId, {method: 'DELETE'});
+    if (r.ok) {
+        document.getElementById('app-' + appId).remove();
+        location.reload();
+    } else {
+        alert('Fehler: ' + (await r.json()).detail);
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const sel = document.getElementById('status-select');
+    if (!sel.contains(e.target)) sel.classList.remove('open');
+});
+
+(function() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('act_status_filter')); } catch(e) {}
+    if (!saved || !Array.isArray(saved)) saved = ACTIVE_STATUSES;
+    setChecked(saved);
+})();
+</script>
+{% endblock %}

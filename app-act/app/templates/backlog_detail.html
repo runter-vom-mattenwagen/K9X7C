@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{% if item %}{{ item.id }} — Backlog — ACT{% else %}Neuer Eintrag — Backlog — ACT{% endif %}{% endblock %}
+{% block content %}
+<div style="margin-bottom:1rem">
+  <a href="/backlog" style="color:var(--text-dim);font-size:0.85rem">← Backlog</a>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+    {% if item %}
+    <code style="color:var(--text-dim);font-size:0.85rem">{{ item.id }}</code>
+    <span class="badge {% if item.status == 'idea' %}badge-new{% elif item.status == 'developing' %}badge-proposed{% elif item.status == 'ready' %}badge-approved{% elif item.status == 'discarded' %}badge-rejected{% else %}badge-done{% endif %}">
+      {{ item.status }}
+    </span>
+    {% else %}
+    <span style="font-weight:600;font-size:1rem">Neuer Eintrag</span>
+    {% endif %}
+  </div>
+
+  <form id="edit-form" method="post" action="{% if item %}/backlog/{{ item.id }}{% else %}/backlog{% endif %}">
+    <label>App</label>
+    {% if item %}
+    <input type="text" value="{{ app.name if app else item.app_id or '—' }}" disabled style="color:var(--text-dim)">
+    {% else %}
+    <select name="app_id" required>
+      {% for a in apps %}
+      <option value="{{ a.id }}">{{ a.name }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+
+    <label>Titel</label>
+    <input type="text" name="title" value="{{ item.title if item else '' }}" required>
+
+    <label>Beschreibung</label>
+    <textarea name="description">{{ item.description if item else '' }}</textarea>
+
+    <label>Notizen</label>
+    <textarea name="notes">{{ item.notes if item else '' }}</textarea>
+
+    {% if item %}
+    <div style="display:flex;gap:1rem;margin-top:0.75rem">
+      <div style="flex:1">
+        <label>Status</label>
+        <select name="status">
+          {% for s in valid_statuses %}
+          <option value="{{ s }}" {% if item.status == s %}selected{% endif %}>{{ s|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Priorität</label>
+        <select name="priority">
+          {% for p in ['low', 'normal', 'high'] %}
+          <option value="{{ p }}" {% if item.priority == p %}selected{% endif %}>{{ p|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    {% else %}
+    <div style="margin-top:0.75rem">
+      <label>Priorität</label>
+      <select name="priority">
+        {% for p in ['low', 'normal', 'high'] %}
+        <option value="{{ p }}" {% if p == 'normal' %}selected{% endif %}>{{ p|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+  </form>
+
+  <div style="margin-top:1rem;display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;gap:0.75rem;align-items:center">
+      <button class="btn btn-primary" type="submit" form="edit-form">{% if item %}Speichern{% else %}Anlegen{% endif %}</button>
+      {% if item and item.status == 'ready' %}
+      <form method="post" action="/backlog/{{ item.id }}/promote">
+        <button class="btn btn-green" type="submit">Promote to Ticket</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if item %}
+    <form method="post" action="/backlog/{{ item.id }}/delete">
+      <button class="btn btn-red btn-sm" type="submit" onclick="return confirm('Eintrag dauerhaft löschen?')">Löschen</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if item %}
+<div style="font-size:0.75rem;color:var(--text-dim);margin-top:1rem">
+  Erstellt: {{ item.created_at[:19] }} &middot; Aktualisiert: {{ item.updated_at[:19] }}
+</div>
+{% endif %}
+{% endblock %}

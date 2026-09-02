@@ -1,0 +1,5 @@
+.env
+vol_data/index.db*
+vol_logs/
+__pycache__/
+vol_data/notes/

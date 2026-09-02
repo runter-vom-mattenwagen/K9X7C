@@ -1,0 +1,10 @@
+vol_data/
+vol_config/
+.env
+__pycache__/
+*.pyc
+.DS_Store
+*.swp
+CLAUDE.md
+.claude-trust.json
+.claude/

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Backlog — ACT{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+  <h2>Backlog</h2>
+</div>
+
+<div class="card">
+  <div class="filters">
+    <select id="filter-app" onchange="applyFilters()">
+      <option value="">Alle Apps</option>
+      {% for a in apps %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+    </select>
+
+    <div class="multi-select" id="status-select">
+      <div class="multi-select-btn" onclick="this.parentElement.classList.toggle('open')">
+        <span id="status-label">Alle Status</span>
+      </div>
+      <div class="multi-select-dropdown">
+        {% for s in valid_statuses %}
+        <div class="multi-select-item" data-value="{{ s }}" onclick="toggleStatus(this)">
+          <span class="check"></span>
+          <span>{{ s }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <a href="/backlog/new" class="btn btn-primary btn-sm" style="margin-left:auto">+ Neuer Eintrag</a>
+  </div>
+
+  <div class="table-responsive">
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Titel</th>
+        <th>App</th>
+        <th>Priorität</th>
+        <th>Status</th>
+        <th>Erstellt</th>
+      </tr>
+    </thead>
+    <tbody id="backlog-table">
+    {% for item in items %}
+    <tr class="backlog-row" data-app="{{ item.app_id or '' }}" data-status="{{ item.status }}">
+      <td style="font-family:monospace;color:var(--text-dim);font-size:0.75rem">{{ item.id }}</td>
+      <td><a href="/backlog/{{ item.id }}">{{ item.title }}</a></td>
+      <td style="font-size:0.8rem;color:var(--text-dim)">{{ item.app_name or '—' }}</td>
+      <td>
+        <span class="badge {% if item.priority == 'high' %}badge-bug{% elif item.priority == 'low' %}badge-done{% else %}badge-new{% endif %}">
+          {{ item.priority }}
+        </span>
+      </td>
+      <td>
+        <span class="badge {% if item.status == 'idea' %}badge-new{% elif item.status == 'developing' %}badge-proposed{% elif item.status == 'ready' %}badge-approved{% elif item.status in ('discarded', 'promoted') %}badge-rejected{% else %}badge-done{% endif %}">
+          {{ item.status }}
+        </span>
+      </td>
+      <td style="color:var(--text-dim);font-size:0.8rem">{{ item.created_at[:10] }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:2rem">Keine Einträge vorhanden.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<script>
+const ALL_STATUSES = [{% for s in valid_statuses %}'{{ s }}',{% endfor %}];
+
+function getCheckedStatuses() {
+  return [...document.querySelectorAll('#status-select .multi-select-item.active')].map(el => el.dataset.value);
+}
+
+function setChecked(statuses) {
+  document.querySelectorAll('#status-select .multi-select-item').forEach(el => {
+    el.classList.toggle('active', statuses.includes(el.dataset.value));
+    el.querySelector('.check').textContent = statuses.includes(el.dataset.value) ? '✓' : '';
+  });
+  applyFilters();
+}
+
+function toggleStatus(el) {
+  el.classList.toggle('active');
+  el.querySelector('.check').textContent = el.classList.contains('active') ? '✓' : '';
+  applyFilters();
+}
+
+function updateLabel() {
+  const checked = getCheckedStatuses();
+  const label = document.getElementById('status-label');
+  if (checked.length === 0 || checked.length === ALL_STATUSES.length) {
+    label.textContent = 'Alle Status';
+  } else if (checked.length <= 2) {
+    label.textContent = checked.join(', ');
+  } else {
+    label.textContent = checked.length + ' Status';
+  }
+}
+
+function applyFilters() {
+  const app = document.getElementById('filter-app').value;
+  const activeStatuses = getCheckedStatuses();
+  updateLabel();
+  localStorage.setItem('act_backlog_status_filter', JSON.stringify(activeStatuses));
+  document.querySelectorAll('.backlog-row').forEach(row => {
+    const matchApp = !app || row.dataset.app === app;
+    const matchStatus = activeStatuses.length === 0 || activeStatuses.includes(row.dataset.status);
+    row.style.display = matchApp && matchStatus ? '' : 'none';
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const sel = document.getElementById('status-select');
+  if (!sel.contains(e.target)) sel.classList.remove('open');
+});
+
+(function() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('act_backlog_status_filter')); } catch(e) {}
+  setChecked(saved && Array.isArray(saved) ? saved : ALL_STATUSES);
+})();
+</script>
+{% endblock %}
