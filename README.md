@@ -55,13 +55,3 @@ and the actual memory notes / trip data are excluded and git-ignored — the poi
 the *how*, and you bring your own *what*. Internal hostnames and IPs are replaced by
 placeholders (`<docker-host>`, RFC-5737 addresses); the internal DNS zone
 `claude.int` is kept as-is, since the whole exercise is about running your own.
-
-## A note on "Claude"
-
-Claude and Claude Code are products of Anthropic. This repository is a personal
-collection built *with* those tools; it is not affiliated with or endorsed by
-Anthropic.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
